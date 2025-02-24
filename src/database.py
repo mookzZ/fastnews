@@ -32,3 +32,6 @@ async def get_db() -> AsyncGenerator[Any, AsyncSession]:
     """
     async with async_session() as session:
         yield session
+
+
+        # docker run --name dasifue_now -e POSTGRES_PASSWORD=123456 -p 6000:5432 -d postgres
