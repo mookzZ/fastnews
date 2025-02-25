@@ -4,11 +4,14 @@ Services module contains business logic
 
 from typing import Sequence
 from datetime import datetime
+import os
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 
-from src.news.models import News
+from src.news.models import News, Comment
+from src.news.schemas.news import NewsCreate
 from src.manager import DBManager
 
 
@@ -43,12 +46,13 @@ class NewsService:
     async def create_news(
         cls,
         db: AsyncSession,
-        news: dict,
+        news: NewsCreate,
     ) -> News:
         """
         Create news
         """
-        return await DBManager.create_object(db=db, model=News, commit=True, **news)
+        news_dict = news.model_dump()
+        return await DBManager.create_object(db=db, model=News, commit=True, **news_dict)
 
     @classmethod
     async def update_news(
@@ -71,7 +75,25 @@ class NewsService:
         news_id: int,
     ) -> None:
         """
-        Delete news
+        Delete news and associated images and comments
         """
+        # Получаем новость перед удалением
         news = await cls.get_news(db, news_id)
-        await DBManager.delete_object(db=db, obj=news)
+        
+        # Удаляем связанные изображения
+        if news.images:
+            for image_path in news.images:
+                try:
+                    full_path = os.path.join("media", image_path)
+                    if os.path.exists(full_path):
+                        os.remove(full_path)
+                except Exception:
+                    pass  # Игнорируем ошибки при удалении файлов
+        
+        # Сначала удаляем все комментарии к новости
+        delete_comments = delete(Comment).where(Comment.news_id == news_id)
+        await db.execute(delete_comments)
+        await db.commit()
+                    
+        # Затем удаляем саму новость
+        await DBManager.delete_object(db=db, model=News, field="id", value=news_id, commit=True)
