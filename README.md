@@ -2,3 +2,4 @@
 # mkdir ./alembic/versions
 # alembic revision --autogenerate -m "Initial tables"
 # alembic upgrade head
+j
